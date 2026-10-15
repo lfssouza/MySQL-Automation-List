@@ -1,1 +1,145 @@
+# Consulta de Nulos e Valores Vazios
+
+## 1. Sobre o projeto
+
+Este projeto consiste em uma *stored procedure* desenvolvida em MySQL para automatizar a identificação e a contagem de valores vazios e valores `NULL` nas colunas textuais das tabelas do banco de dados selecionado.
+
+A proposta é facilitar uma verificação inicial da qualidade dos dados, reduzindo a necessidade de escrever consultas individuais para cada tabela e coluna.
+
+## 2. Objetivo
+
+O objetivo é percorrer automaticamente as colunas de tipos textuais do banco de dados atual, contabilizando:
+
+- **Valores vazios:** textos sem conteúdo, incluindo strings compostas apenas por espaços comuns.
+- **Valores `NULL`:** registros que não possuem um valor definido para aquela coluna.
+
+Os resultados são organizados em um relatório que identifica a tabela, a coluna, a quantidade de valores vazios e a quantidade de valores `NULL`.
+
+## 3. Como funciona
+
+A procedure utiliza diferentes recursos do MySQL para automatizar o processo.
+
+### 3.1. Declaração das variáveis
+
+São declaradas variáveis para armazenar o estado da execução, os nomes das tabelas e colunas encontrados e outras informações necessárias ao processamento.
+
+A variável `done` indica quando não existem mais registros a serem lidos pelo cursor.
+
+### 3.2. Consulta ao INFORMATION_SCHEMA
+
+O `INFORMATION_SCHEMA.COLUMNS` fornece informações sobre as colunas existentes no banco de dados.
+
+A procedure consulta esses metadados para identificar tabelas e colunas de tipos textuais, como `VARCHAR`, `CHAR` e `TEXT`.
+
+A função `DATABASE()` determina qual banco de dados está selecionado na conexão.
+
+### 3.3. Utilização de cursor e loop
+
+O cursor permite percorrer os resultados da consulta de metadados, obtendo uma tabela e uma coluna por vez.
+
+A estrutura `LOOP` repete o processamento de cada coluna. Quando o cursor não encontra mais registros, um *handler* altera o valor de `done`, permitindo que o loop seja encerrado.
+
+### 3.4. Criação da tabela temporária
+
+A tabela temporária `RelatorioEspacos` armazena os resultados encontrados durante a execução.
+
+Ela possui quatro campos:
+
+| Campo                   | Finalidade                                                   |
+| ----------------------- | ------------------------------------------------------------ |
+| `Tabela`                | Nome da tabela analisada                                     |
+| `Coluna`                | Nome da coluna analisada                                     |
+| `Qtd_Espacos_ou_Vazios` | Quantidade de valores vazios ou compostos apenas por espaços |
+| `Qtd_Nulos`             | Quantidade de valores `NULL`                                 |
+
+### 3.5. Construção e execução do SQL dinâmico
+
+Como os nomes das tabelas e colunas variam, a procedure constrói uma consulta SQL dinamicamente para cada coluna encontrada.
+
+Para isso, utiliza:
+
+- `CONCAT()` para montar o comando SQL.
+- `PREPARE` para preparar a consulta dinâmica.
+- `EXECUTE` para executá-la.
+- `DEALLOCATE PREPARE` para liberar o comando preparado após a execução.
+
+Esse mecanismo permite reutilizar a mesma lógica em diferentes tabelas e colunas.
+
+### 3.6. Contagem de valores vazios
+
+A expressão `TRIM()` remove os espaços comuns no início e no final do texto. Em seguida, a comparação com uma string vazia identifica os valores que ficam sem conteúdo após essa remoção.
+
+A contagem é feita com `SUM(CASE WHEN ... THEN 1 ELSE 0 END)`.
+
+**Exemplo:** os valores `''` e `'   '` são contabilizados como vazios.
+
+### 3.7. Contagem de valores NULL
+
+A condição `IS NULL` identifica os registros cujo valor é `NULL`.
+
+Esses registros são contados separadamente, pois `NULL` representa ausência de valor definido, enquanto uma string vazia é um valor textual existente, mas sem conteúdo.
+
+### 3.8. Exibição do relatório
+
+Ao terminar a análise, a procedure apresenta somente as colunas em que foi encontrada pelo menos uma ocorrência de valor vazio ou `NULL`.
+
+Os resultados são ordenados pelo nome da tabela e da coluna, facilitando a leitura.
+
+Por fim, a tabela temporária é removida.
+
+## 4. Tecnologias 
+
+- MySQL
+
+## 5. Como utilizar
+
+### Pré-requisitos
+
+- Uma instância MySQL com permissão para criar e executar procedures.
+- Um banco de dados selecionado.
+- Permissões necessárias para consultar os metadados e ler as tabelas analisadas.
+
+### Passos para execução
+
+1. Abra o script `Consulta de nulos e vazios.sql` no MySQL Workbench ou em uma ferramenta compatível.
+2. Selecione o banco de dados que deseja analisar.
+3. Execute o script para criar a procedure.
+4. Caso o comando `CALL` não esteja incluído no script de criação, execute:
+
+```sql
+call localizar_nulos();
+```
+
+A procedure analisará as colunas textuais do banco selecionado e exibirá o relatório.
+
+**Observação:** se a procedure tiver sido criada com outro nome, substitua o nome do comando `CALL` pelo nome efetivamente utilizado.
+
+## 6. Exemplo de interpretação
+
+Considere uma coluna com os seguintes valores:
+
+| Valor     | Classificação       |
+| --------- | ------------------- |
+| `''`      | Vazio               |
+| `'   '`   | Vazio após `TRIM()` |
+| `NULL`    | Nulo                |
+| `'Maria'` | Texto preenchido    |
+| `NULL`    | Nulo                |
+
+Nesse exemplo, o resultado esperado é:
+
+- `Qtd_Espacos_ou_Vazios`: 2
+- `Qtd_Nulos`: 2
+
+## 7. Limitações e cuidados
+
+- A procedure analisa o banco de dados selecionado, não todos os bancos existentes no servidor.
+- A identificação de espaços utiliza `TRIM()`, que não remove necessariamente todos os tipos de caracteres em branco, como tabulações e quebras de linha.
+- O script considera os tipos textuais listados na consulta aos metadados.
+- Em tabelas vazias, as funções de agregação podem retornar `NULL` em vez de zero.
+- O código deve ser testado em um ambiente adequado antes de ser utilizado em bancos de dados importantes.
+
+## 8. Aprendizado
+
+Este projeto foi desenvolvido como exercício prático de SQL e automação em MySQL, com foco na compreensão de procedures, cursores, SQL dinâmico e técnicas iniciais de auditoria da qualidade dos dados.
 
