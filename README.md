@@ -58,8 +58,8 @@ As principais propostas são:
 **Principais conceitos:** Stored Procedures, cursores, handlers, SQL dinâmico, tabelas temporárias e funções de agregação.
 
 **Pasta:** `Consulta de nulos e vazios MySQL/`
-
 **Documentação:** [Consulta de nulos e vazios MySQL](./Consulta%20de%20nulos%20e%20vazios%20MySQL/README.md)
+
 
 ---
 
